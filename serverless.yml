@@ -15,7 +15,7 @@ functions:
       - sqs:
           arn:
             Fn::GetAtt:
-              - MyQueue
+              - sls
               - Arn
       - http:
           path: /
