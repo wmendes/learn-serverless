@@ -18,7 +18,7 @@ This template does not include any kind of persistence (database). For a more ad
 
 ## Setup
 
-Run this command to initialize a new project in a new working directory.
+Run this commando to initialize a new project in a new working directory.
 
 `sls init aws-node-rest-api`
 
