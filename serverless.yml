@@ -1,6 +1,8 @@
 org: wmendes
 app: learn-app
 service: learn-app
+plugins:
+  - serverless-offline
 
 provider:
   name: aws
@@ -10,6 +12,19 @@ functions:
   hello:
     handler: handler.hello
     events:
+      - sqs:
+          arn:
+            Fn::GetAtt:
+              - MyQueue
+              - Arn
       - http:
           path: /
           method: get
+
+resources:
+  Resources:
+    MyQueue:
+      Type: "AWS::SQS::Queue"
+      Properties:
+        QueueName: "sls"
+
