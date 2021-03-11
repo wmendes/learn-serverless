@@ -1,4 +1,9 @@
 {
+  "dependencies": {
+    "aws-sdk": "^2.7.9",
+    "twilio": "^3.57.0",
+    "uuid": "^8.3.2"
+  },
   "devDependencies": {
     "serverless-offline": "^6.8.0"
   }

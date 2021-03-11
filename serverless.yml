@@ -1,30 +1,105 @@
 org: wmendes
 app: learn-app
 service: learn-app
+
+package:
+  individually: true
+
 plugins:
   - serverless-offline
 
 provider:
   name: aws
   runtime: nodejs12.x
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - s3:PutObject
+        - s3:PutObjectAcl
+      Resource: "arn:aws:s3:::${self:custom.bucket}/*"
+    
+    - Effect: "Allow"
+      Resource: "*"
+      Action:
+        - "sns:*"
+
+    - Effect: "Allow"
+      Resource: "*"
+      Action:
+        - "polly:SynthesizeSpeech"
+  environment:
+    STAGE: ${opt:stage, self:provider.stage}
+
 
 functions:
-  hello:
-    handler: handler.hello
+  writeMessageToS3:
+    handler: handler.writeMessageToS3
+
     events:
       - sqs:
           arn:
             Fn::GetAtt:
               - SLSQueue
               - Arn
+
+  sendMessageToSNS:
+    handler: handler.sendMessageToSNS
+
+    events:
       - http:
-          path: /
-          method: get
+          path: /message
+          method: post    
+    environment:
+      topicARN:
+        Ref: SNSTopic      
 
 resources:
   Resources:
+        
+    SNSTopic:
+      Type: AWS::SNS::Topic
+      Properties:
+        TopicName: "${self:custom.topic}"
+
     SLSQueue:
       Type: "AWS::SQS::Queue"
       Properties:
-        QueueName: "sls"
+        QueueName: "${self:custom.queue}"
+
+    snsToSqsPolicy:
+      Type: AWS::SQS::QueuePolicy
+      Properties:
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Sid: "allow-sns-messages"
+              Effect: Allow
+              Principal: "*"
+              Resource: !GetAtt
+                - SLSQueue
+                - Arn
+              Action: "SQS:SendMessage"
+              Condition:
+                ArnEquals:
+                  "aws:SourceArn": !Ref SNSTopic
+        Queues:
+          - Ref: SLSQueue
+
+    queueSubscription:
+      Type: 'AWS::SNS::Subscription'
+      Properties:
+        TopicArn: !Ref SNSTopic
+        Endpoint: !GetAtt
+          - SLSQueue
+          - Arn
+        Protocol: sqs
+        RawMessageDelivery: 'true'
+
+
+custom:
+  bucket: "wlad-sls-bucket-${opt:stage, self:provider.stage}"
+  queue: "wlad-sqs-queue-${opt:stage, self:provider.stage}"
+  topic: "wlad-sns-topic-${opt:stage, self:provider.stage}"
+  myStage: ${opt:stage, self:provider.stage}
+
 
