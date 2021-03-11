@@ -14,7 +14,7 @@ const Polly = new AWS.Polly({
 const Sns = new AWS.SNS({apiVersion: '2010-03-31'});
 
 const Twilio = require('twilio');
-const client = new Twilio('AC66ff487f0f2d064ea0be8c996e7f46ab', 'd37721f899139dcfc0032f3685d3b2b1');
+const client = new Twilio('AC66ff487f0f2d064ea0be8c996e7f46ab', 'b35175f3d34901afdb419ab724a0851d');
 
 const sendMediaMessage = (mediaUrl, from, toNumber) => {
   return client.messages
@@ -128,11 +128,11 @@ module.exports.writeMessageToS3 = async (event, context) => {
           wikiExtract(results).then(extract => {
             createAudio(extract).then( audio => {
               saveObjectOnS3(audio.AudioStream).then( file => {
-                sendMediaMessage(file.Location, from, toNumber).then(data => resolve(data));
+                sendMediaMessage(file.Location, from, toNumber);
               })
             });
           })
-        })    
+        })
       });
     });
     
