@@ -29,6 +29,8 @@ provider:
         - "polly:SynthesizeSpeech"
   environment:
     STAGE: ${opt:stage, self:provider.stage}
+    TWILIO_API_KEY: ${param:TWILIO_API_KEY}
+    TWILIO_API_SECRET: ${param:TWILIO_API_SECRET}
 
 
 functions:

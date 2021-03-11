@@ -14,7 +14,7 @@ const Polly = new AWS.Polly({
 const Sns = new AWS.SNS({apiVersion: '2010-03-31'});
 
 const Twilio = require('twilio');
-const client = new Twilio('AC66ff487f0f2d064ea0be8c996e7f46ab', 'b35175f3d34901afdb419ab724a0851d');
+const client = new Twilio(process.env.TWILIO_API_KEY, process.env.TWILIO_API_SECRET);
 
 const sendMediaMessage = (mediaUrl, from, toNumber) => {
   return client.messages
@@ -68,7 +68,7 @@ const wikiSearch = (text) => {
 
 const wikiExtract = (pageId) => {
   return new Promise((resolve, reject) => {
-    https.get('https://pt.wikipedia.org/w/api.php?format=json&action=query&prop=extracts&exintro&explaintext&redirects=1&pageids=' + pageId, (resp) => {
+    https.get('https://pt.wikipedia.org/w/api.php?format=json&action=query&prop=extracts&exintro&explaintext&exsentences=3&redirects=1&pageids=' + pageId, (resp) => {
       let data = '';
 
       resp.on('data', (chunk) => {
