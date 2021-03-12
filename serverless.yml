@@ -31,6 +31,7 @@ provider:
     STAGE: ${opt:stage, self:provider.stage}
     TWILIO_API_KEY: ${param:TWILIO_API_KEY}
     TWILIO_API_SECRET: ${param:TWILIO_API_SECRET}
+    SELF_API_KEY: ${param:SELF_API_KEY}
 
 
 functions:
@@ -49,8 +50,8 @@ functions:
 
     events:
       - http:
-          path: /message
-          method: post    
+          path: /message/{apiKey}
+          method: post
     environment:
       topicARN:
         Ref: SNSTopic      

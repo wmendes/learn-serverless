@@ -11,7 +11,7 @@ const Polly = new AWS.Polly({
   region: 'us-east-1'
 })
 
-const Sns = new AWS.SNS({apiVersion: '2010-03-31'});
+const Sns = new AWS.SNS({ apiVersion: '2010-03-31' });
 
 const Twilio = require('twilio');
 const client = new Twilio(process.env.TWILIO_API_KEY, process.env.TWILIO_API_SECRET);
@@ -36,14 +36,13 @@ const sendMessage = (text, from, toNumber) => {
 
 const publishToSNS = (body) => {
 
-  console.log(`body: `, body);
   let params = {
     Message: body, /* required */
     TopicArn: process.env.topicARN
   };
 
   return Sns.publish(params).promise();
-} 
+}
 
 
 const wikiSearch = (text) => {
@@ -54,44 +53,53 @@ const wikiSearch = (text) => {
       resp.on('data', (chunk) => {
         data += chunk;
       });
-    
+
       resp.on('end', () => {
         let firstResult = JSON.parse(data).query.search.find(e => true);
-        resolve(firstResult.pageid);
+        if(firstResult){
+          resolve(firstResult.pageid);
+        } else {
+          resolve(null);
+        }
+        
       });
-    
+
     }).on("error", (err) => {
       reject(err.message);
-    });  
+    });
   });
 }
 
 const wikiExtract = (pageId) => {
   return new Promise((resolve, reject) => {
-    https.get('https://pt.wikipedia.org/w/api.php?format=json&action=query&prop=extracts&exintro&explaintext&exsentences=3&redirects=1&pageids=' + pageId, (resp) => {
-      let data = '';
+    if(pageId){
+      https.get('https://pt.wikipedia.org/w/api.php?format=json&action=query&prop=extracts&exintro&explaintext&exsentences=3&redirects=1&pageids=' + pageId, (resp) => {
+        let data = '';
 
-      resp.on('data', (chunk) => {
-        data += chunk;
+        resp.on('data', (chunk) => {
+          data += chunk;
+        });
+
+        resp.on('end', () => {
+          let pagesObj = JSON.parse(data).query.pages;
+          let pagesKey = Object.keys(pagesObj);
+          let firstResult = pagesObj[pagesKey[0]];
+          resolve(firstResult.extract);
+        });
+
+      }).on("error", (err) => {
+        reject(err.message);
       });
-    
-      resp.on('end', () => {
-        let pagesObj = JSON.parse(data).query.pages;
-        let pagesKey = Object.keys(pagesObj);
-        let firstResult = pagesObj[pagesKey[0]];
-        resolve(firstResult.extract);
-      });
-    
-    }).on("error", (err) => {
-      reject(err.message);
-    });  
+    } else {
+      resolve('Não foi possivel encontrar um resultado para a sua pesquisa. Tente novamente.');
+    }
   });
 }
 
 const createAudio = (text) => {
   let params = {
     'Text': text,
-    'Engine' : 'neural',
+    'Engine': 'neural',
     'OutputFormat': 'mp3',
     'VoiceId': 'Camila'
   }
@@ -107,18 +115,16 @@ const saveObjectOnS3 = (object) => {
     ACL: 'public-read',
     Body: object
   }
-  console.log(params);
 
   return s3.upload(params).promise();
 }
 
 
 module.exports.writeMessageToS3 = async (event, context) => {
-  try{
+  try {
+
     var putObjectPromises = event.Records.map(async function (obj, index) {
       return new Promise((resolve, reject) => {
-        console.log('object: ', obj);
-        
         var bodyObject = JSON.parse(obj.body);
         var queryString = bodyObject.q;
         var toNumber = bodyObject.to;
@@ -126,8 +132,8 @@ module.exports.writeMessageToS3 = async (event, context) => {
 
         wikiSearch(queryString).then(results => {
           wikiExtract(results).then(extract => {
-            createAudio(extract).then( audio => {
-              saveObjectOnS3(audio.AudioStream).then( file => {
+            createAudio(extract).then(audio => {
+              saveObjectOnS3(audio.AudioStream).then(file => {
                 sendMediaMessage(file.Location, from, toNumber);
               })
             });
@@ -135,42 +141,39 @@ module.exports.writeMessageToS3 = async (event, context) => {
         })
       });
     });
-    
-    await Promise.all(putObjectPromises).then((values => {
-      console.log(values);
-    }));
 
+    await Promise.all(putObjectPromises);
 
-    return {
-      statusCode: 200,
-      body: JSON.stringify(
-        {
-          message: 'Go Serverless v1.0! Your function executed successfully!',
-          input: event,
-        },
-        null,
-        2
-      ),
-    };
-  } catch(error){
+  } catch (error) {
     context.captureError(error);
-    sendMessage(error.errorMessage);
   }
 }
 
 module.exports.sendMessageToSNS = async (event, context) => {
   try {
-    let params = new URLSearchParams(event.body);
-    console.log(`Event: `, event);
-    console.log(`params `, params);
-    console.log(`params.get('Body'): `, params.get('Body'));
-    return publishToSNS(JSON.stringify({"q" : params.get('Body'), "to" : params.get('WaId'), "from" : params.get('To')})).then(response => {
+    if (event.pathParameters.apiKey != process.env.SELF_API_KEY) {
       return {
-        statusCode: 200,
-        headers: {"Content-Type": "application/json"},
+        statusCode: 401,
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(
           {
-            message: 'Go Serverless v1.0! Your function executed successfully!',
+            message: 'Unauthorized',
+            input: event,
+          },
+          null,
+          2
+        ),
+      };
+    }
+
+    let params = new URLSearchParams(event.body);
+    return publishToSNS(JSON.stringify({ "q": params.get('Body'), "to": params.get('WaId'), "from": params.get('To') })).then(response => {
+      return {
+        statusCode: 200,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(
+          {
+            message: 'Success',
             input: event,
           },
           null,
@@ -178,8 +181,7 @@ module.exports.sendMessageToSNS = async (event, context) => {
         ),
       };
     })
-  } catch(error){
+  } catch (error) {
     context.captureError(error);
-    sendMessage(error.errorMessage);
   }
 }
